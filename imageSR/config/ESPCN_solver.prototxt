@@ -1,0 +1,33 @@
+# The train/test net protocol buffer definition
+train_net: "<TRAIN_NET_HOLDER>"
+test_net: "<TEST_NET_HOLDER>"
+test_iter: <TEST_ITR_HOLDER>
+# Carry out testing every 500 training iterations.
+test_interval: <TEST_INT_HOLDER>
+test_initialization: true
+test_compute_loss: false
+# The base learning rate, momentum and the weight decay of the network.
+#for relu
+base_lr: 0.0001
+# for prelu
+#base_lr: 0.000001
+# for tanh
+#base_lr: 0.01
+#base_lr: 0
+momentum: 0.9
+weight_decay: 0
+# The learning rate policy
+lr_policy: "fixed"
+# Display every 100 iterations
+display: 10000
+# The maximum number of iterations
+max_iter: <MAX_ITR_HOLDER>
+# snapshot intermediate results
+snapshot: <SNAP_INT_HOLDER>
+snapshot_prefix: "espcn"
+# solver mode: CPU or GPU
+solver_mode: GPU
+# debug mode
+#debug_info: true
+
+

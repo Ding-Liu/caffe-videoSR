@@ -1,0 +1,216 @@
+name: "ESPCN"
+layer {
+  name: "data"
+  type: "Python"
+  top: "data"
+  top: "label"
+  python_param {
+    module: '<PYTHON_MODULE_HOLDER>'
+    layer: '<PYTHON_LAYER_HOLDER>'
+    param_str: "{'batch_size': <BATCH_SIZE_HOLDER>, 'batch_num': <TEST_BATCH_NUM_HOLDER>, 'config_file': '<TEST_CONFIG_FILE_HOLDER>', 'test': 1}"
+  }
+}
+
+layer {
+  name: "conv1"
+  type: "Convolution"
+  bottom: "data"
+  top: "conv1"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 0.1
+  }
+  convolution_param {
+    num_output: 64
+    kernel_size: 5
+    stride: 1
+    pad: 0
+    weight_filler {
+      type: "gaussian"
+      std: 0.001
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+layer {
+  name: "relu1"
+  type: "ReLU"
+#  type: "PReLU"
+  bottom: "conv1"
+  top: "conv1"
+}
+
+layer {
+  name: "conv2"
+  type: "Convolution"
+  bottom: "conv1"
+  top: "conv2"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 0.1
+  }
+  convolution_param {
+    num_output: 32
+    kernel_size: 3
+    stride: 1
+    pad: 0
+    weight_filler {
+      type: "gaussian"
+      std: 0.001
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+layer {
+  name: "relu2"
+  type: "ReLU"
+#  type: "PReLU"
+  bottom: "conv2"
+  top: "conv2"
+}
+
+layer {
+  name: "conv3"
+  type: "Convolution"
+  bottom: "conv2"
+  top: "conv3"
+  param {
+    lr_mult: 0.1
+  }
+  param {
+    lr_mult: 0.1
+  }
+  convolution_param {
+    num_output: <CHANNEL_NUM>
+    kernel_size: 3
+    stride: 1
+    pad: 0
+    weight_filler {
+      type: "gaussian"
+      std: 0.001
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+layer {
+	bottom: "conv3"
+	top: "conv3r"
+	name: "conv3r"
+	type: "Rearrange"
+	rearrange_param {
+		depth: 1
+	}
+}
+layer {
+  name: "slice"
+  type: "Slice"
+  bottom: "data"
+  top: "Slice1"
+  top: "Slice2"
+  top: "Slice3"
+  top: "Slice4"
+  top: "Slice5"
+  slice_param {
+    slice_point: 1
+    slice_point: 2
+    slice_point: 3
+    slice_point: 4
+    axis: 1
+  }
+}
+layer {
+  name: "silence"
+  type: "Silence"
+  bottom: "Slice1"
+  bottom: "Slice2"
+  bottom: "Slice4"
+  bottom: "Slice5"
+}
+layer {
+  name: "upsample"
+  type: "Deconvolution"
+  bottom: "Slice3"
+  top: "data_upsc"
+  convolution_param {
+    kernel_size: <DECONV_KERNAL_SIZE>
+    stride: <STRIDE>
+    num_output: 1
+    group: 1
+    pad: <PAD_SIZE>
+    weight_filler: { type: "bilinear" }
+    bias_term: false
+  }
+  param { lr_mult: 0 decay_mult: 0 }
+}
+layer {
+        name: "crop"
+        type: "Crop"
+        bottom: "data_upsc"
+        bottom: "conv3r"
+        top: "crop"
+        crop_param {
+            axis: 2
+            offset: <CROP_SIZE>
+        }
+}
+layer {
+        name: "sum"
+        type: "Eltwise"
+        bottom: "conv3r"
+        bottom: "crop"
+        top: "sum"
+        eltwise_param {
+          operation: 1
+        }
+}
+layer {
+        name: "conv3reshp"
+        type: "Reshape"
+        # bottom: "conv3"
+        bottom: "sum"
+        top: "conv3reshp"
+        reshape_param {
+          shape {
+            dim: -1
+            dim: 1
+          }
+        }
+}
+layer {
+        name: "labelreshp"
+        type: "Reshape"
+        bottom: "label"
+        top: "labelreshp"
+        reshape_param {
+          shape {
+            dim: -1
+            dim: 1
+          }
+        }
+}
+layer {
+  name: "loss"
+  type: "EuclideanLoss"
+#  bottom: "conv3r"
+#  bottom: "label"
+  bottom: "conv3reshp"
+  bottom: "labelreshp"
+  top: "loss"
+}
+

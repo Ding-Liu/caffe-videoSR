@@ -1,0 +1,154 @@
+name: "ESPCN"
+layer {
+  name: "data"
+  type: "Python"
+  top: "data"
+  top: "label"
+  python_param {
+    module: '<PYTHON_MODULE_HOLDER>'
+    layer: '<PYTHON_LAYER_HOLDER>'
+    param_str: "{'batch_size': <BATCH_SIZE_HOLDER>, 'batch_num': <TEST_BATCH_NUM_HOLDER>, 'config_file': '<TEST_CONFIG_FILE_HOLDER>', 'test': 1}"
+  }
+}
+
+layer {
+  name: "conv1"
+  type: "Convolution"
+  bottom: "data"
+  top: "conv1"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 0.1
+  }
+  convolution_param {
+    num_output: 64
+    kernel_size: 5
+    stride: 1
+    pad: 0
+    weight_filler {
+      type: "gaussian"
+      std: 0.001
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+layer {
+  name: "relu1"
+  type: "ReLU"
+#  type: "PReLU"
+  bottom: "conv1"
+  top: "conv1"
+}
+
+layer {
+  name: "conv2"
+  type: "Convolution"
+  bottom: "conv1"
+  top: "conv2"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 0.1
+  }
+  convolution_param {
+    num_output: 32
+    kernel_size: 3
+    stride: 1
+    pad: 0
+    weight_filler {
+      type: "gaussian"
+      std: 0.001
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+layer {
+  name: "relu2"
+  type: "ReLU"
+#  type: "PReLU"
+  bottom: "conv2"
+  top: "conv2"
+}
+
+layer {
+  name: "conv3"
+  type: "Convolution"
+  bottom: "conv2"
+  top: "conv3"
+  param {
+    lr_mult: 0.1
+  }
+  param {
+    lr_mult: 0.1
+  }
+  convolution_param {
+    num_output: <CHANNEL_NUM>
+    kernel_size: 3
+    stride: 1
+    pad: 0
+    weight_filler {
+      type: "gaussian"
+      std: 0.001
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+layer {
+	bottom: "conv3"
+	top: "conv3r"
+	name: "conv3r"
+	type: "Rearrange"
+	rearrange_param {
+		depth: 1
+	}
+}
+layer {
+        name: "conv3reshp"
+        type: "Reshape"
+        # bottom: "conv3"
+        bottom: "conv3r"
+        top: "conv3reshp"
+        reshape_param {
+          shape {
+            dim: -1
+            dim: 1
+          }
+        }
+}
+layer {
+        name: "labelreshp"
+        type: "Reshape"
+        bottom: "label"
+        top: "labelreshp"
+        reshape_param {
+          shape {
+            dim: -1
+            dim: 1
+          }
+        }
+}
+layer {
+  name: "loss"
+  type: "EuclideanLoss"
+#  bottom: "conv3r"
+#  bottom: "label"
+  bottom: "conv3reshp"
+  bottom: "labelreshp"
+  top: "loss"
+}
+
