@@ -29,8 +29,7 @@ layer {
     pad: 0
     weight_filler {
       type: "gaussian"
-      #std: 0.001
-      std: 0.1
+      std: 0.001
     }
     bias_filler {
       type: "constant"
@@ -65,8 +64,7 @@ layer {
     pad: 0
     weight_filler {
       type: "gaussian"
-      #std: 0.001
-      std: 0.05
+      std: 0.001
     }
     bias_filler {
       type: "constant"
@@ -101,8 +99,7 @@ layer {
     pad: 0
     weight_filler {
       type: "gaussian"
-      #std: 0.001
-      std: 0.05
+      std: 0.001
     }
     bias_filler {
       type: "constant"
@@ -120,7 +117,6 @@ layer {
 		depth: 1
 	}
 }
-
 layer {
         name: "conv3reshp"
         type: "Reshape"
@@ -146,8 +142,6 @@ layer {
           }
         }
 }
-
-
 layer {
   name: "loss"
   type: "EuclideanLoss"

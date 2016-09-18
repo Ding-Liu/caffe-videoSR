@@ -151,4 +151,3 @@ layer {
   bottom: "labelreshp"
   top: "loss"
 }
-
