@@ -47,6 +47,9 @@ if __name__ == '__main__':
         else:
             solver.net.params[l][0].data[...] = refnet.params[l][0].data
 
+        # initialize biases
+        solver.net.params[l][1].data[...] = refnet.params[l][1].data
+
     # save
     #solver.net.save('scnet-dic48.caffemodel')
 
