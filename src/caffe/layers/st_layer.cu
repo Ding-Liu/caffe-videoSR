@@ -27,6 +27,15 @@ __global__ void copy_values(const int nthreads, int size_src, int k,
 }
 
 template <typename Dtype>
+__global__ void xyw_div_w(const int nthreads, Dtype* src) {
+
+	CUDA_KERNEL_LOOP(index, nthreads) {
+		src[index * 3] /= src[index * 3 + 2];
+		src[index * 3 + 1] /= src[index * 3 + 2];
+	}
+}
+
+template <typename Dtype>
 __global__ void SpatialTransformerForwardGPU(const int nthreads, int N, int C,
 		int output_H_, int output_W_, int H, int W,
 		const Dtype* input_grid_data, const Dtype* U, Dtype* V) {
@@ -38,11 +47,11 @@ __global__ void SpatialTransformerForwardGPU(const int nthreads, int N, int C,
 		const int j = (index / (output_W_ * output_H_)) % C;
 		const int i = index / (output_W_ * output_H_ * C);
 
-		const Dtype* coordinates = input_grid_data + (output_H_ * output_W_ * 2) * i;
+		const Dtype* coordinates = input_grid_data + (output_H_ * output_W_ * 3) * i;
 		const int row_idx = output_W_ * s + t;
 
-	  	const Dtype px = coordinates[row_idx * 2];
-	  	const Dtype py = coordinates[row_idx * 2 + 1];
+		const Dtype px = coordinates[row_idx * 3];
+		const Dtype py = coordinates[row_idx * 3 + 1];
 
 	  	const int V_offset = index;
 
@@ -100,15 +109,15 @@ void SpatialTransformerLayer<Dtype>::Forward_gpu(
 	// compute full_theta
 	int k = 0;
 	const int num_threads = N;
-	for(int i=0; i<6; ++i) {
+	for(int i=0; i<9; ++i) {
 		if(is_pre_defined_theta[i]) {
 			set_value_to_constant<Dtype><<<CAFFE_GET_BLOCKS(num_threads), CAFFE_CUDA_NUM_THREADS>>>(
-				num_threads, pre_defined_theta[i], 6, i, full_theta_data);
+				num_threads, pre_defined_theta[i], 9, i, full_theta_data);
 			//std::cout << "Setting value " << pre_defined_theta[i] << " to "<< i <<
 			//	"/6 of full_theta_data" << std::endl;
 		} else {
 			copy_values<Dtype><<<CAFFE_GET_BLOCKS(num_threads), CAFFE_CUDA_NUM_THREADS>>>(num_threads,
-				6 - pre_defined_count, k, theta, 6, i, full_theta_data);
+				9 - pre_defined_count, k, theta, 9, i, full_theta_data);
 			//std::cout << "Copying " << k << "/" << 6 - pre_defined_count << " of theta to "
 			//	<< i << "/6 of full_theta_data" << std::endl;
 			++ k;
@@ -117,9 +126,12 @@ void SpatialTransformerLayer<Dtype>::Forward_gpu(
 
 	// compute out input_grid_data
 	for(int i = 0; i < N; ++i) {
-		caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans, output_H_ * output_W_, 2, 3, (Dtype)1.,
-				output_grid_data, full_theta_data + 6 * i, (Dtype)0.,
-				input_grid_data + (output_H_ * output_W_ * 2) * i);
+		caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans, output_H_ * output_W_, 3, 3, (Dtype)1.,
+				output_grid_data, full_theta_data + 9 * i, (Dtype)0.,
+				input_grid_data + (output_H_ * output_W_ * 3) * i);
+	}
+	if (transform_type_ == "perspective") {
+		xyw_div_w<Dtype><<<CAFFE_GET_BLOCKS(N * output_H_ * output_W_), CAFFE_CUDA_NUM_THREADS>>>(N * output_H_ * output_W_, input_grid_data);
 	}
 
 	const int nthreads = N * C * output_H_ * output_W_;
@@ -141,12 +153,13 @@ __global__ void SpatialTransformerBackwardGPU_dTheta(const int nthreads, int C,
 		const int j = (index / (output_W_ * output_H_)) % C;
 		const int i = index / (output_W_ * output_H_ * C);
 
-		const Dtype* coordinates = input_grid_data + (output_H_ * output_W_ * 2) * i;
+		const Dtype* coordinates = input_grid_data + (output_H_ * output_W_ * 3) * i;
 
 		const int row_idx = output_W_ * s + t;
 
-		const Dtype px = coordinates[row_idx * 2];
-		const Dtype py = coordinates[row_idx * 2 + 1];
+		const Dtype px = coordinates[row_idx * 3];
+		const Dtype py = coordinates[row_idx * 3 + 1];
+		const Dtype pw = coordinates[row_idx * 3 + 2];
 
 		Dtype delta_dpx = (Dtype)0.;
 		Dtype delta_dpy = (Dtype)0.;
@@ -189,12 +202,16 @@ __global__ void SpatialTransformerBackwardGPU_dTheta(const int nthreads, int C,
 
 		int idx = j * (output_H_ * output_W_) + s * output_W_ + t;
 
-		dTheta_tmp_diff[(6 * i) * (output_H_ * output_W_ * C) + idx] += delta_dpx * (s * 1.0 / output_H_ * 2 - 1);
-		dTheta_tmp_diff[(6 * i + 1) * (output_H_ * output_W_ * C) + idx] += delta_dpx * (t * 1.0 / output_W_ * 2 - 1);
-		dTheta_tmp_diff[(6 * i + 2) * (output_H_ * output_W_ * C) + idx] += delta_dpx;
-		dTheta_tmp_diff[(6 * i + 3) * (output_H_ * output_W_ * C) + idx] += delta_dpy * (s * 1.0 / output_H_ * 2 - 1);
-		dTheta_tmp_diff[(6 * i + 4) * (output_H_ * output_W_ * C) + idx] += delta_dpy * (t * 1.0 / output_W_ * 2 - 1);
-		dTheta_tmp_diff[(6 * i + 5) * (output_H_ * output_W_ * C) + idx] += delta_dpy;
+		dTheta_tmp_diff[(9 * i) * (output_H_ * output_W_ * C) + idx] += delta_dpx * (s * 1.0 / output_H_ * 2 - 1) / pw; 
+		dTheta_tmp_diff[(9 * i + 1) * (output_H_ * output_W_ * C) + idx] += delta_dpx * (t * 1.0 / output_W_ * 2 - 1) / pw;
+		dTheta_tmp_diff[(9 * i + 2) * (output_H_ * output_W_ * C) + idx] += delta_dpx / pw;
+		dTheta_tmp_diff[(9 * i + 3) * (output_H_ * output_W_ * C) + idx] += delta_dpy * (s * 1.0 / output_H_ * 2 - 1) / pw;
+		dTheta_tmp_diff[(9 * i + 4) * (output_H_ * output_W_ * C) + idx] += delta_dpy * (t * 1.0 / output_W_ * 2 - 1) / pw;
+		dTheta_tmp_diff[(9 * i + 5) * (output_H_ * output_W_ * C) + idx] += delta_dpy / pw;
+		dTheta_tmp_diff[(9 * i + 6) * (output_H_ * output_W_ * C) + idx] -= delta_dpx * (s * 1.0 / output_H_ * 2 - 1) * px / pw;
+		dTheta_tmp_diff[(9 * i + 7) * (output_H_ * output_W_ * C) + idx] -= delta_dpx * (t * 1.0 / output_W_ * 2 - 1) * px / pw;
+		dTheta_tmp_diff[(9 * i + 6) * (output_H_ * output_W_ * C) + idx] -= delta_dpy * (s * 1.0 / output_H_ * 2 - 1) * py / pw;
+		dTheta_tmp_diff[(9 * i + 7) * (output_H_ * output_W_ * C) + idx] -= delta_dpy * (t * 1.0 / output_W_ * 2 - 1) * py / pw;
 	}
 }
 
@@ -210,11 +227,11 @@ __global__ void SpatialTransformerBackwardGPU_dU(const int nthreads, const int C
 		const int j = (index / (output_W_ * output_H_)) % C;
 		const int i = index / (output_W_ * output_H_ * C);
 
-		const Dtype* coordinates = input_grid_data + (output_H_ * output_W_ * 2) * i;
+		const Dtype* coordinates = input_grid_data + (output_H_ * output_W_ * 3) * i;
 		const int row_idx = output_W_ * s + t;
 
-	  	const Dtype px = coordinates[row_idx * 2];
-	  	const Dtype py = coordinates[row_idx * 2 + 1];
+		const Dtype px = coordinates[row_idx * 3];
+		const Dtype py = coordinates[row_idx * 3 + 1];
 
 	  	const int V_offset = index;
 
@@ -286,10 +303,10 @@ void SpatialTransformerLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& to
 
 	int k = 0;
 	const int num_threads = N;
-	for(int i=0; i<6; ++i) {
+	for(int i=0; i<9; ++i) {
 		if(!is_pre_defined_theta[i]) {
 			copy_values<Dtype><<<CAFFE_GET_BLOCKS(num_threads), CAFFE_CUDA_NUM_THREADS>>>(num_threads,
-				6, i, dFull_theta, 6 - pre_defined_count, k, dTheta);
+				9, i, dFull_theta, 9 - pre_defined_count, k, dTheta);
 			//std::cout << "Copying " << i << "/6 of dFull_theta to " << k << "/" <<
 			//	6 - pre_defined_count << " of dTheta" << std::endl;
 			++ k;

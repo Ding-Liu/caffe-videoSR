@@ -21,8 +21,10 @@ void SpatialTransformerLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bott
 
 	if(this->layer_param_.st_param().transform_type() == "affine") {
 		transform_type_ = "affine";
-	} else {
-		CHECK(false) << prefix << "Transformation type only supports affine now!" << std::endl;
+	} else if(this->layer_param_.st_param().transform_type() == "perspective") {
+                transform_type_ = "perspective";
+        } else{
+		CHECK(false) << prefix << "Transformation type only supports affine and prespective now!" << std::endl;
 	}
 
 	if(this->layer_param_.st_param().sampler_type() == "bilinear") {
@@ -98,8 +100,28 @@ void SpatialTransformerLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bott
 		std::cout<<prefix<<"Getting pre-defined theta[2][3] = "<<pre_defined_theta[5]<<std::endl;
 	}
 
+	is_pre_defined_theta[6] = false;
+	if(this->layer_param_.st_param().has_theta_3_1() || transform_type_ == "affine") {
+		is_pre_defined_theta[6] = true;
+		++ pre_defined_count;
+		pre_defined_theta[6] = this->layer_param_.st_param().theta_3_1();
+		std::cout<<prefix<<"Getting pre-defined theta[3][1] = "<<pre_defined_theta[6]<<std::endl;
+	}
+
+	is_pre_defined_theta[7] = false;
+	if(this->layer_param_.st_param().has_theta_3_2() || transform_type_ == "affine") {
+		is_pre_defined_theta[7] = true;
+		++ pre_defined_count;
+		pre_defined_theta[7] = this->layer_param_.st_param().theta_3_2();
+		std::cout<<prefix<<"Getting pre-defined theta[3][2] = "<<pre_defined_theta[7]<<std::endl;
+	}
+
+	is_pre_defined_theta[8] = true;
+	++ pre_defined_count;
+	pre_defined_theta[8] = (Dtype)1.;
+
 	// check the validation for the parameter theta
-	CHECK(bottom[1]->count(1) + pre_defined_count == 6) << "The dimension of theta is not six!"
+	CHECK(bottom[1]->count(1) + pre_defined_count == 9) << "The dimension of theta is not nine!"
 			<< " Only " << bottom[1]->count(1) << " + " << pre_defined_count << std::endl;
 	CHECK(bottom[1]->shape(0) == bottom[0]->shape(0)) << "The first dimension of theta and " <<
 			"U should be the same" << std::endl;
@@ -122,7 +144,7 @@ void SpatialTransformerLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bott
 	std::cout<<prefix<<"Initializing the matrix for input grid"<<std::endl;
 
 	vector<int> shape_input(3);
-	shape_input[0] = bottom[1]->shape(0); shape_input[1] = output_H_ * output_W_; shape_input[2] = 2;
+	shape_input[0] = bottom[1]->shape(0); shape_input[1] = output_H_ * output_W_; shape_input[2] = 3;
 	input_grid.Reshape(shape_input);
 
 	std::cout<<prefix<<"Initialization finished."<<std::endl;
@@ -155,7 +177,7 @@ void SpatialTransformerLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
 	vector<int> dTheta_tmp_shape(4);
 
 	dTheta_tmp_shape[0] = N;
-	dTheta_tmp_shape[1] = 2;
+	dTheta_tmp_shape[1] = 3;
 	dTheta_tmp_shape[2] = 3;
 	dTheta_tmp_shape[3] = output_H_ * output_W_ * C;
 
@@ -169,7 +191,7 @@ void SpatialTransformerLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
 	// reshape full_theta
 	vector<int> full_theta_shape(2);
 	full_theta_shape[0] = N;
-	full_theta_shape[1] = 6;
+	full_theta_shape[1] = 9;
 	full_theta.Reshape(full_theta_shape);
 
 	if(global_debug) std::cout<<prefix<<"Finished."<<std::endl;
