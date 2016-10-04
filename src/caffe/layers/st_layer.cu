@@ -56,26 +56,34 @@ __global__ void SpatialTransformerForwardGPU(const int nthreads, int N, int C,
 
 	  	m = floor(x); n = floor(y); w = 0;
 	  	if(m >= 0 && m < H && n >= 0 && n < W) {
-	  		w = (1 - (x - m)) * (1 - (y - n));
-	  		V[V_offset] += w * pic[m * W + n];
+			if (w < (1 - (x - m)) * (1 - (y - n))) {
+				w = (1 - (x - m)) * (1 - (y - n));
+				V[V_offset] = pic[m * W + n];
+			}
 	  	}
 
-	  	m = floor(x) + 1; n = floor(y); w = 0;
+		m = floor(x) + 1; n = floor(y);
 	  	if(m >= 0 && m < H && n >= 0 && n < W) {
-	  		w = (1 - (m - x)) * (1 - (y - n));
-	  		V[V_offset] += w * pic[m * W + n];
+			if (w < (1 - (m - x)) * (1 - (y - n))) {
+				w = (1 - (m - x)) * (1 - (y - n));
+				V[V_offset] = pic[m * W + n];
+			}
 	  	}
 
-	  	m = floor(x); n = floor(y) + 1; w = 0;
+		m = floor(x); n = floor(y) + 1;
 	  	if(m >= 0 && m < H && n >= 0 && n < W) {
-	  		w = (1 - (x - m)) * (1 - (n - y));
-	  		V[V_offset] += w * pic[m * W + n];
+			if (w < (1 - (x - m)) * (1 - (n - y))) {
+				w = (1 - (x - m)) * (1 - (n - y));
+				V[V_offset] = pic[m * W + n];
+			}
 	  	}
 
-	  	m = floor(x) + 1; n = floor(y) + 1; w = 0;
-	  	if(m >= 0 && m < H && n >= 0 && n < W) {
-	  		w = (1 - (m - x)) * (1 - (n - y));
-	  		V[V_offset] += w * pic[m * W + n];
+		m = floor(x) + 1; n = floor(y) + 1;
+		if(m >= 0 && m < H && n >= 0 && n < W) {
+			if (w < (1 - (m - x)) * (1 - (n - y))) {
+				w = (1 - (m - x)) * (1 - (n - y));
+				V[V_offset] = pic[m * W + n];
+			}
 	  	}
   }
 }
@@ -159,32 +167,74 @@ __global__ void SpatialTransformerBackwardGPU_dTheta(const int nthreads, int C,
 		int m, n;
 		const Dtype* U = U_array + i * (C * H * W) + j * (H * W);
 
+		Dtype w = 0;
+		int max_w_index;
+		m = floor(x); n = floor(y);
+                if(m >= 0 && m < H && n >= 0 && n < W) {
+                        if(w < (1 - (x - m)) * (1 - (y - n))) {
+                                w = (1 - (x - m)) * (1 - (y - n));
+				max_w_index = 0;
+                        }
+                }
+
+                m = floor(x) + 1; n = floor(y);
+                if(m >= 0 && m < H && n >= 0 && n < W) {
+                        if(w < (1 - (m - x)) * (1 - (y - n))) {
+                                w = (1 - (m - x)) * (1 - (y - n));
+				max_w_index = 1;
+                        }
+                }
+
+                m = floor(x); n = floor(y) + 1;
+                if(m >= 0 && m < H && n >= 0 && n < W) {
+                        if(w < (1 - (x - m)) * (1 - (n - y))) {
+                                w = (1 - (x - m)) * (1 - (n - y));
+				max_w_index = 2;
+			}
+                }
+
+                m = floor(x) + 1; n = floor(y) + 1;
+                if(m >= 0 && m < H && n >= 0 && n < W) {
+                        if(w < (1 - (m - x)) * (1 - (n - y))) {
+                                w = (1 - (m - x)) * (1 - (n - y));
+				max_w_index = 3;
+			}
+                }
+
 		// left-bottom neighbor
 		m = floor(x); n = floor(y);
 		if(m >= 0 && m < H && n >= 0 && n < W) {
-			delta_dpx -= (1 - (y - n)) * U[m * W + n] * dV * H / 2;
-			delta_dpy -= (1 - (x - m)) * U[m * W + n] * dV * W / 2;
+			if(max_w_index == 0) {
+				delta_dpx -= (1 - (y - n)) * U[m * W + n] * dV * H / 2;
+				delta_dpy -= (1 - (x - m)) * U[m * W + n] * dV * W / 2;
+			}
 		}
 
 		// left-top neighbor
 		m = floor(x); n = floor(y) + 1;
 		if(m >= 0 && m < H && n >= 0 && n < W) {
-			delta_dpx -= (1 - (n - y)) * U[m * W + n] * dV * H / 2;
-			delta_dpy += (1 - (x - m)) * U[m * W + n] * dV * W / 2;
+			if(max_w_index == 1) {
+				delta_dpx -= (1 - (n - y)) * U[m * W + n] * dV * H / 2;
+				delta_dpy += (1 - (x - m)) * U[m * W + n] * dV * W / 2;
+			}
 		}
 
 		// right-bottom neighbor
 		m = floor(x) + 1; n = floor(y);
 		if(m >= 0 && m < H && n >= 0 && n < W) {
-			delta_dpx += (1 - (y - n)) * U[m * W + n] * dV * H / 2;
-			delta_dpy -= (1 - (m - x)) * U[m * W + n] * dV * W / 2;
+			if(max_w_index == 2) {
+				delta_dpx += (1 - (y - n)) * U[m * W + n] * dV * H / 2;
+				delta_dpy -= (1 - (m - x)) * U[m * W + n] * dV * W / 2;
+			}
 		}
 
 		// right-top neighbor
 		m = floor(x) + 1; n = floor(y) + 1;
 		if(m >= 0 && m < H && n >= 0 && n < W) {
-			delta_dpx += (1 - (n - y)) * U[m * W + n] * dV * H / 2;
-			delta_dpy += (1 - (m - x)) * U[m * W + n] * dV * W / 2;
+			if(max_w_index == 3) {
+				delta_dpx += (1 - (n - y)) * U[m * W + n] * dV * H / 2;
+				delta_dpy += (1 - (m - x)) * U[m * W + n] * dV * W / 2;
+			}
 		}
 
 		int idx = j * (output_H_ * output_W_) + s * output_W_ + t;
@@ -222,30 +272,67 @@ __global__ void SpatialTransformerBackwardGPU_dU(const int nthreads, const int C
 	  	const Dtype y = (py + 1) / 2 * W;
 
 	  	int m, n; Dtype w;
+		int max_w_index;
 	  	Dtype* pic = dU + i * (C * H * W) + j * (H * W);
 
 	  	m = floor(x); n = floor(y); w = 0;
+		if(m >= 0 && m < H && n >= 0 && n < W) {
+			if(w < (1 - (x - m)) * (1 - (y - n))) {
+				w = (1 - (x - m)) * (1 - (y - n));
+				max_w_index = 0;
+			}
+		}
+
+		m = floor(x) + 1; n = floor(y);
+		if(m >= 0 && m < H && n >= 0 && n < W) {
+			if(w < (1 - (m - x)) * (1 - (y - n))) {
+				w = (1 - (m - x)) * (1 - (y - n));
+				max_w_index = 1;
+			}
+		}
+
+		m = floor(x); n = floor(y) + 1;
+		if(m >= 0 && m < H && n >= 0 && n < W) {
+			if(w < (1 - (x - m)) * (1 - (n - y))) {
+				w = (1 - (x - m)) * (1 - (n - y));
+				max_w_index = 2;
+			}
+		}
+
+		m = floor(x) + 1; n = floor(y) + 1;
+		if(m >= 0 && m < H && n >= 0 && n < W) {
+			if(w < (1 - (m - x)) * (1 - (n - y))) {
+				w = (1 - (m - x)) * (1 - (n - y));
+				max_w_index = 3;
+			}
+		}
+
+		m = floor(x); n = floor(y);
 	  	if(m >= 0 && m < H && n >= 0 && n < W) {
-	  		w = (1 - (x - m)) * (1 - (y - n));
-			caffe_gpu_atomic_add(w * dV[V_offset], pic + (m * W + n));
+			if(max_w_index == 0) {
+				caffe_gpu_atomic_add(dV[V_offset], pic + (m * W + n));
+			}
 	  	}
 
-	  	m = floor(x) + 1; n = floor(y); w = 0;
+		m = floor(x) + 1; n = floor(y);
 	  	if(m >= 0 && m < H && n >= 0 && n < W) {
-	  		w = (1 - (m - x)) * (1 - (y - n));
-			caffe_gpu_atomic_add(w * dV[V_offset], pic + (m * W + n));
+			if(max_w_index == 1) {
+				caffe_gpu_atomic_add(dV[V_offset], pic + (m * W + n));
+			}
 	  	}
 
-	  	m = floor(x); n = floor(y) + 1; w = 0;
+		m = floor(x); n = floor(y) + 1;
 	  	if(m >= 0 && m < H && n >= 0 && n < W) {
-	  		w = (1 - (x - m)) * (1 - (n - y));
-			caffe_gpu_atomic_add(w * dV[V_offset], pic + (m * W + n));
+			if(max_w_index == 2) {
+				caffe_gpu_atomic_add(dV[V_offset], pic + (m * W + n));
+			}
 	  	}
 
-	  	m = floor(x) + 1; n = floor(y) + 1; w = 0;
+		m = floor(x) + 1; n = floor(y) + 1;
 	  	if(m >= 0 && m < H && n >= 0 && n < W) {
-	  		w = (1 - (m - x)) * (1 - (n - y));
-			caffe_gpu_atomic_add(w * dV[V_offset], pic + (m * W + n));
+			if(max_w_index == 3) {
+				caffe_gpu_atomic_add(dV[V_offset], pic + (m * W + n));
+			}
 	  	}
 	}
 }

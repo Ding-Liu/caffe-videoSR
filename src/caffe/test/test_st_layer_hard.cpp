@@ -58,8 +58,7 @@ TYPED_TEST(HardSpatialTransformerLayerTest, TestGradient) {
 #ifndef CPU_ONLY
   IS_VALID_CUDA = CAFFE_TEST_CUDA_PROP.major >= 2;
 #endif
-  if (Caffe::mode() == Caffe::CPU ||
-      sizeof(Dtype) == 4 || IS_VALID_CUDA) {
+  if (Caffe::mode() == Caffe::GPU) {
 
 	  	// reshape theta to have full 6 dimension
 	  	vector<int> shape_theta(2);
@@ -93,8 +92,7 @@ TYPED_TEST(HardSpatialTransformerLayerTest, TestGradientWithPreDefinedTheta) {
 #ifndef CPU_ONLY
   IS_VALID_CUDA = CAFFE_TEST_CUDA_PROP.major >= 2;
 #endif
-  if (Caffe::mode() == Caffe::CPU ||
-      sizeof(Dtype) == 4 || IS_VALID_CUDA) {
+  if (Caffe::mode() == Caffe::GPU) {
 
 		// reshape theta to have only 2 dimensions
 		vector<int> shape_theta(2);
