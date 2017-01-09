@@ -4,7 +4,7 @@ import numpy as np
 import cPickle as pickle
 import utils
 import time
-from ImageSR import SRBase
+from SCNSR import SRBase
 
 
 class ESPCNSR (SRBase):
@@ -25,7 +25,7 @@ class ESPCNSR (SRBase):
         self.params = params
         # print params
 
-    def upscale_alg(self, im_l_y):
+    def upscale_alg(self, im_l_y, s):
         # assert im_l_y.ndim == 2, 'Input image has to be a grayscale image!'
 
         if im_l_y.ndim == 2:  # input is single frame

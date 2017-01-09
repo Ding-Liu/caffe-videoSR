@@ -6,7 +6,7 @@ jobid=$1
 
 gpu_id=1
 
-codedir=/home/dingliu2/Documents/caffe/videoSR
+codedir=/ws/ifp-06_1/dingliu2/caffe-videoSR/imageSR
 datdir=/ws/ifp-06_1/dingliu2/data
 savepath=${codedir}/mdl/${jobid}
 #caffe=${codedir}/run_caffe_train.py
@@ -21,8 +21,8 @@ data_layer=ESPCNMultiImagePairDataLayer
 solver_file=${codedir}/config/ESPCN_solver.prototxt
 
 # Relu activation
-train_layer_file=${codedir}/config/ESPCN_train_res_5F.prototxt
-test_layer_file=${codedir}/config/ESPCN_test_res_5F.prototxt
+train_layer_file=${codedir}/config/ESPCN_res_5F_train.prototxt
+test_layer_file=${codedir}/config/ESPCN_res_5F_test.prototxt
 #train_layer_file=${codedir}/config/ESPCN_train_res.prototxt
 #test_layer_file=${codedir}/config/ESPCN_test_res.prototxt
 # Parametric relu activation
@@ -34,22 +34,22 @@ test_layer_file=${codedir}/config/ESPCN_test_res_5F.prototxt
 
 batch_sz=64
 train_batches=20000000 #over all epoches
-test_batches=11 # number of batches used during testing
+test_batches=33 # number of batches used during testing
 test_int=10000
 snap_int=100000
 
-inpSize=20 # input size
+inpSize=30 # input size
 scale=4 # upscaling factor
 mrgSize=4 # margin size
 outSize=$((($inpSize-2*$mrgSize)*$scale)) # output size
-smplPerSide=50 #50 for natural image, 200 for scan document
-smplPerVideo=100 # number of samples along temporal direction
+smplPerSide=20 #50 for natural image, 200 for scan document
+smplPerVideo=30 # number of samples along temporal direction
 rotPerImg=16 #number of ways to augment (3d) input data 
 inpDepth=5 # number of frames as input
 outDepth=1 # number of frames as output
 
-imgdata_tr=${datdir}/videoSR/train_ESPCN/
-imgdata_ts=${datdir}/videoSR/test_ESPCN/
+imgdata_tr=${datdir}/videoSR/train_ESPCN_o2/
+imgdata_ts=${datdir}/videoSR/test_UVG_ESPCN/
 
 # prepare dp configurations
 mkdir -p $savepath
@@ -79,8 +79,8 @@ echo "inpdepth $inpDepth" >> $test_cfg
 echo "outdepth $outDepth" >> $test_cfg
 echo "scale $scale" >> $test_cfg
 echo "mrgsize $mrgSize" >> $test_cfg
-echo "smplPerSide 5" >> $test_cfg
-echo "smplPerVideo 4" >> $test_cfg
+echo "smplPerSide 10" >> $test_cfg
+echo "smplPerVideo 3" >> $test_cfg
 echo 'MAT_IN_VAR Input' >> $test_cfg
 echo 'MAT_OUT_VAR Output' >> $test_cfg
 
