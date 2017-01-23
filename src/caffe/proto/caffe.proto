@@ -1167,6 +1167,8 @@ message SpatialTransformerParameter {
   optional double theta_2_1 = 9;
   optional double theta_2_2 = 10;
   optional double theta_2_3 = 11;
+  optional double theta_3_1 = 12;
+  optional double theta_3_2 = 13;
 }
 
 // added by Kaichun Mo

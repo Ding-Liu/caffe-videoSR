@@ -69,9 +69,9 @@ private:
 	Blob<Dtype> dTheta_tmp;	// used for back propagation part in GPU implementation
 	Blob<Dtype> all_ones_2;	// used for back propagation part in GPU implementation
 
-	Blob<Dtype> full_theta;	// used for storing data and diff for full six-dim theta
-	Dtype pre_defined_theta[6];
-	bool is_pre_defined_theta[6];
+	Blob<Dtype> full_theta;	// used for storing data and diff for full nine-dim theta
+	Dtype pre_defined_theta[9];
+	bool is_pre_defined_theta[9];
 	int pre_defined_count;
 
 	Blob<Dtype> output_grid;	// standard output coordinate system, [0, 1) by [0, 1).

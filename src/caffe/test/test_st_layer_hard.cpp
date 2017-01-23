@@ -26,7 +26,7 @@ class HardSpatialTransformerLayerTest : public MultiDeviceTest<TypeParam> {
  protected:
   HardSpatialTransformerLayerTest()
  	 : blob_U_(new Blob<Dtype>(2, 3, 10, 10)),
- 	   blob_theta_(new Blob<Dtype>(2, 2, 3, 1)),
+	   blob_theta_(new Blob<Dtype>(2, 1, 8, 1)),
  	   blob_V_(new Blob<Dtype>(2, 3, 7, 7)) {
 
 	  FillerParameter filler_param;
@@ -35,7 +35,7 @@ class HardSpatialTransformerLayerTest : public MultiDeviceTest<TypeParam> {
 	  filler.Fill(this->blob_theta_);
 
 	  vector<int> shape_theta(2);
-	  shape_theta[0] = 2; shape_theta[1] = 6;
+	  shape_theta[0] = 2; shape_theta[1] = 8;
 	  blob_theta_->Reshape(shape_theta);
 
 	  blob_bottom_vec_.push_back(blob_U_);
@@ -58,12 +58,13 @@ TYPED_TEST(HardSpatialTransformerLayerTest, TestGradient) {
 #ifndef CPU_ONLY
   IS_VALID_CUDA = CAFFE_TEST_CUDA_PROP.major >= 2;
 #endif
-  if (Caffe::mode() == Caffe::CPU ||
-      sizeof(Dtype) == 4 || IS_VALID_CUDA) {
+//  if (Caffe::mode() == Caffe::CPU ||
+//      sizeof(Dtype) == 4 || IS_VALID_CUDA) {
+  if (Caffe::mode() == Caffe::GPU) {
 
 	  	// reshape theta to have full 6 dimension
 	  	vector<int> shape_theta(2);
-		shape_theta[0] = 2; shape_theta[1] = 6;
+		shape_theta[0] = 2; shape_theta[1] = 8;
 		this->blob_theta_->Reshape(shape_theta);
 
 		// fill random variables for theta
@@ -76,6 +77,7 @@ TYPED_TEST(HardSpatialTransformerLayerTest, TestGradient) {
 		SpatialTransformerParameter *st_param = layer_param.mutable_st_param();
 		st_param->set_output_h(7);
 		st_param->set_output_w(7);
+		st_param->set_transform_type("perspective");
 
 		// begin to check
 		SpatialTransformerLayer<Dtype> layer(layer_param);
@@ -93,12 +95,13 @@ TYPED_TEST(HardSpatialTransformerLayerTest, TestGradientWithPreDefinedTheta) {
 #ifndef CPU_ONLY
   IS_VALID_CUDA = CAFFE_TEST_CUDA_PROP.major >= 2;
 #endif
-  if (Caffe::mode() == Caffe::CPU ||
-      sizeof(Dtype) == 4 || IS_VALID_CUDA) {
+//  if (Caffe::mode() == Caffe::CPU ||
+//      sizeof(Dtype) == 4 || IS_VALID_CUDA) {
+  if (Caffe::mode() == Caffe::GPU) {
 
-		// reshape theta to have only 2 dimensions
+		// reshape theta to have only 4 dimensions
 		vector<int> shape_theta(2);
-		shape_theta[0] = 2; shape_theta[1] = 2;
+		shape_theta[0] = 2; shape_theta[1] = 4;
 		this->blob_theta_->Reshape(shape_theta);
 
 		// fill random variables for theta
@@ -111,6 +114,7 @@ TYPED_TEST(HardSpatialTransformerLayerTest, TestGradientWithPreDefinedTheta) {
 		SpatialTransformerParameter *st_param = layer_param.mutable_st_param();
 		st_param->set_output_h(7);
 		st_param->set_output_w(7);
+		st_param->set_transform_type("perspective");
 
 		st_param->set_theta_1_1(0.5);
 		st_param->set_theta_1_2(0);
